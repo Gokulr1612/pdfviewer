@@ -6,7 +6,13 @@ plugins {
 
 android {
     namespace = "com.gokul.docviewer"
-    compileSdk = 35
+
+    // androidx.pdf 1.0.0-beta01 requires compiling against API 36 with SDK
+    // extension level 19. Note this is independent of targetSdk below: it
+    // makes the newer APIs available without opting the app into new runtime
+    // behaviour.
+    compileSdk = 36
+    compileSdkExtension = 19
 
     defaultConfig {
         applicationId = "com.gokul.docviewer"
