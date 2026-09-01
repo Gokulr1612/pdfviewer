@@ -8,12 +8,16 @@ Everything runs on-device. Nothing is uploaded.
 
 ## Status
 
-Phase 1 of the [build plan](#roadmap). PDFs open; the Word and Excel
-renderers are still to come.
+Phase 1 of the [build plan](#roadmap). The PDF viewer is wired up and the
+project builds; the Word and Excel renderers are still to come.
+
+Nothing here has been run on a device yet. CI proves that the project compiles
+against the Android SDK and that the format-detection tests pass — not that a
+document renders correctly on screen.
 
 | Format | State |
 | --- | --- |
-| PDF | Viewer wired to `androidx.pdf` |
+| PDF | Viewer wired to `androidx.pdf`; not yet run on a device |
 | DOCX / XLSX | Detected and identified; renderer not yet built |
 | PPTX, legacy `.doc`/`.xls`, OpenDocument | Detected, explicitly unsupported |
 
