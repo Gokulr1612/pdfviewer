@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.DocViewer">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.DocViewer">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Opening a document handed over by another app.
+
+                Android takes the cross product of the <data> elements below, so
+                every listed scheme is paired with every listed MIME type.
+            -->
+            <intent-filter android:label="@string/open_with_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.template" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.template" />
+                <data android:mimeType="application/vnd.ms-word.document.macroEnabled.12" />
+                <data android:mimeType="application/vnd.ms-excel.sheet.macroEnabled.12" />
+            </intent-filter>
+
+            <!--
+                Files shared with the wrong type, which is extremely common:
+                mail clients, chat apps and download managers frequently declare
+                application/octet-stream regardless of what the file is. We
+                accept those and identify the real format by reading the bytes.
+            -->
+            <intent-filter android:label="@string/open_with_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <!-- Receiving a document through the system share sheet. -->
+            <intent-filter android:label="@string/share_to_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+    </application>
+
+    <!--
+        Package visibility (Android 11+): needed so a Google Drive shortcut,
+        which contains only a URL, can be handed off to a browser or the Drive
+        app rather than failing.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+</manifest>
