@@ -19,14 +19,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.gokul.docviewer.OpenDocument
+import com.gokul.docviewer.SpreadsheetState
 import com.gokul.docviewer.core.DocumentFormat
+import com.gokul.docviewer.ui.sheet.SpreadsheetScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentScreen(
     document: OpenDocument,
+    spreadsheet: SpreadsheetState,
     onBack: () -> Unit,
     onShare: () -> Unit,
+    onSelectSheet: (Int) -> Unit,
     onOpenDriveShortcut: () -> Unit,
 ) {
     Scaffold(
@@ -59,10 +63,14 @@ fun DocumentScreen(
         when {
             format == DocumentFormat.PDF -> PdfViewerHost(document.uri, content)
 
-            // Recognised, renderer still to come (phases 2 and 3).
-            format == DocumentFormat.DOCX || format == DocumentFormat.DOCM ||
-                format == DocumentFormat.XLSX || format == DocumentFormat.XLSM ->
-                RendererNotBuiltYet(format, content)
+            format.isSpreadsheet -> SpreadsheetScreen(
+                state = spreadsheet,
+                onSelectSheet = onSelectSheet,
+                modifier = content,
+            )
+
+            // Recognised, renderer still to come (phase 3).
+            format.isWordProcessing -> RendererNotBuiltYet(format, content)
 
             else -> UnsupportedDocument(
                 detection = document.detection,

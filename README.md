@@ -17,8 +17,9 @@ document renders correctly on screen.
 
 | Format | State |
 | --- | --- |
-| PDF | Viewer wired to `androidx.pdf`; not yet run on a device |
-| DOCX / XLSX | Detected and identified; renderer not yet built |
+| PDF | Viewer wired to `androidx.pdf` |
+| XLSX / XLSM | Read and rendered as a scrollable grid |
+| DOCX / DOCM | Detected and identified; renderer not yet built |
 | PPTX, legacy `.doc`/`.xls`, OpenDocument | Detected, explicitly unsupported |
 
 ## Layout
@@ -78,6 +79,27 @@ Requires JDK 17+ and the Android SDK (API 35).
     ./gradlew :core:test          # format detection tests
     ./gradlew :app:assembleDebug  # build the app
 
+## Reading spreadsheets
+
+XLSX is a ZIP of XML, so the reader needs nothing beyond `java.util.zip` and
+`XmlPullParser`, both of which Android already bundles. Apache POI was
+deliberately not used: its method count strains the dex limit, and the lighter
+alternatives depend on StAX, which Android does not ship.
+
+Reading takes two passes over the archive — one for the small shared parts
+(sheet list, string table, styles) and one to stream whichever sheet is being
+shown — so two sheet bodies are never in memory at once. Reads are bounded and
+report when they stopped early rather than silently returning a short sheet.
+
+Two details that a naive reader gets wrong:
+
+- **A number is only a date if the workbook's styles say so.** `45322` is
+  either the number 45322 or 31 January 2024 depending on a style index, and
+  nothing in the cell itself distinguishes them.
+- **Excel's 1900 epoch contains a deliberate bug.** It treats 1900 as a leap
+  year for Lotus 1-2-3 compatibility, so serial 60 is a 29 February that never
+  existed. Workbooks from classic Mac Excel count from 1904 instead.
+
 ## How a file is identified
 
 The app reads files to work out what they are rather than trusting the type
@@ -98,9 +120,9 @@ Two cases are worth calling out, because most viewers get them wrong:
 ## Roadmap
 
 1. ~~Project skeleton~~
-2. **File intake and PDF** — intent filters, document picker, recents, detection
-3. XLSX — an OOXML reader and a Compose grid
-4. DOCX — a block model, a Compose renderer, and a WebView fallback
+2. ~~File intake and PDF~~ — intent filters, document picker, recents, detection
+3. ~~XLSX~~ — an OOXML reader and a Compose grid
+4. **DOCX** — a block model, a Compose renderer, and a WebView fallback
 5. Polish — search, text selection, large-file behaviour, accessibility
 6. Later — PPTX, legacy formats, Drive and OneDrive pickers
 

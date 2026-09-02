@@ -18,6 +18,11 @@ kotlin {
 }
 
 dependencies {
+    // The XmlPullParser *API* only. Android supplies an implementation on its
+    // bootclasspath; the tests below supply kxml2's. Nothing from this
+    // dependency is bundled, which is what keeps the module Android-free.
+    compileOnly(libs.kxml2)
+
     testImplementation(libs.junit)
     testImplementation(libs.kxml2)
     testImplementation(kotlin("test"))
