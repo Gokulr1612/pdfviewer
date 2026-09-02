@@ -8,17 +8,13 @@ Everything runs on-device. Nothing is uploaded.
 
 ## Status
 
-Phase 1 of the [build plan](#roadmap). The PDF viewer is wired up and the
-project builds; the Word and Excel renderers are still to come.
-
-Nothing here has been run on a device yet. CI proves that the project compiles
-against the Android SDK and that the format-detection tests pass — not that a
-document renders correctly on screen.
+Phases 1 and 2 of the [build plan](#roadmap). PDFs and spreadsheets open on a
+real device; the Word renderer is still to come.
 
 | Format | State |
 | --- | --- |
-| PDF | Viewer wired to `androidx.pdf` |
-| XLSX / XLSM | Read and rendered as a scrollable grid |
+| PDF | Opens, via `androidx.pdf` |
+| XLSX / XLSM | Opens as a scrollable grid |
 | DOCX / DOCM | Detected and identified; renderer not yet built |
 | PPTX, legacy `.doc`/`.xls`, OpenDocument | Detected, explicitly unsupported |
 
@@ -71,6 +67,12 @@ Then add these under **Settings → Secrets and variables → Actions**:
 
 Keep `release.jks` somewhere safe and out of the repository. Losing it means
 future builds cannot upgrade an existing install.
+
+Signing also makes the app substantially smaller. The debug APK is around
+66 MB, of which roughly 63 MB is dex — a debug build runs no shrinker, so it
+carries the whole Compose and AndroidX dependency graph. (Almost none of it is
+native code; the bundled `.so` files come to about 40 KB.) The release build
+runs R8 and strips what the app does not reach.
 
 ## Building
 
