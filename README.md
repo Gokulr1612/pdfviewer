@@ -45,18 +45,26 @@ native Android app rather than a cross-platform framework.
 
 ### Signed builds (optional)
 
-With no configuration, releases contain a **debug** APK. It installs and runs,
+With no configuration, releases carry a **debug** APK. It installs and runs,
 but it is signed with a throwaway key that changes between CI runs, so
-installing a new build over an old one fails with a signature mismatch and the
-previous version has to be uninstalled first.
+installing a new build over an old one fails with a signature mismatch, and
+nothing shrinks it — see the size note below.
 
-Adding four repository secrets removes that and publishes a properly signed
-release build alongside the debug one. Create a keystore once:
+Configuring signing fixes both. From a clone of the repository:
+
+    ./tools/setup-signing.sh
+
+That creates a keystore, uploads the four secrets with the GitHub CLI, and
+writes the password to a git-ignored file for you to move somewhere durable.
+The next merge into `master` then publishes a signed, R8-shrunk APK that
+installs over previous builds.
+
+Prefer to do it by hand? Create the keystore:
 
     keytool -genkeypair -v -keystore release.jks -alias docviewer \
-      -keyalg RSA -keysize 2048 -validity 10000
+      -keyalg RSA -keysize 4096 -validity 10000
 
-Then add these under **Settings → Secrets and variables → Actions**:
+and add these under **Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 | --- | --- |
@@ -65,21 +73,35 @@ Then add these under **Settings → Secrets and variables → Actions**:
 | `SIGNING_KEY_ALIAS` | `docviewer` |
 | `SIGNING_KEY_PASSWORD` | the key password |
 
-Keep `release.jks` somewhere safe and out of the repository. Losing it means
-future builds cannot upgrade an existing install.
+**Keep the keystore and its password.** They are the credential that proves
+this app's identity: anyone holding them can sign updates Android will accept
+as genuine, and losing them means no future build can upgrade an install that
+already exists. They are git-ignored; keep them in a password manager or an
+encrypted backup, not in the repository.
 
-Signing also makes the app substantially smaller. The debug APK is around
-66 MB, of which roughly 63 MB is dex — a debug build runs no shrinker, so it
-carries the whole Compose and AndroidX dependency graph. (Almost none of it is
-native code; the bundled `.so` files come to about 40 KB.) The release build
-runs R8 and strips what the app does not reach.
+### Why the debug APK is so large
+
+The debug APK is around 66 MB, of which roughly 63 MB is dex. A debug build
+runs no shrinker, so the whole Compose and AndroidX dependency graph ships
+whether or not the app reaches it. Almost none of it is native code — the
+bundled `.so` files come to about 40 KB, which is worth saying because
+bundled native libraries are the intuitive culprit and are not the cause.
+
+The release build runs R8 and strips what the app never reaches. CI builds it
+on **every** run, signing it with a throwaway key when no real one is
+configured, so a shrinker breaking something reflective shows up immediately
+rather than the first time somebody sets up signing. Each run's summary
+reports both sizes, and while signing is unconfigured the shrunk APK is
+attached to the run as `apk-minified-preview-<n>` so it can be tried.
 
 ## Building
 
-Requires JDK 17+ and the Android SDK (API 35).
+Requires JDK 17+ and the Android SDK (API 36, SDK extension 19 — what
+`androidx.pdf` compiles against).
 
-    ./gradlew :core:test          # format detection tests
-    ./gradlew :app:assembleDebug  # build the app
+    ./gradlew :core:test            # format tests, no SDK needed
+    ./gradlew :app:assembleDebug    # build the app
+    ./gradlew :app:assembleRelease  # the R8-shrunk build; needs signing set up
 
 ## Reading spreadsheets
 

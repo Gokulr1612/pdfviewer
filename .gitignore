@@ -12,6 +12,15 @@ local.properties
 release/
 captures/
 
+# Signing material. The keystore and its passwords are the credential that
+# proves this app's identity — a leaked one lets someone sign updates that
+# Android will accept as genuine. Never commit them.
+*.jks
+*.keystore
+*.p12
+keystore.properties
+signing.properties
+
 # IDE
 .idea/
 *.iml
