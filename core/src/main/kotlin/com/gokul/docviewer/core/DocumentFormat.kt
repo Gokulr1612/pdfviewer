@@ -89,6 +89,14 @@ enum class DocumentFormat(
     val isOoxml: Boolean
         get() = this == DOCX || this == XLSX || this == DOCM || this == XLSM || this == PPTX
 
+    /** Formats the spreadsheet viewer can render. */
+    val isSpreadsheet: Boolean
+        get() = this == XLSX || this == XLSM
+
+    /** Formats the word-processor viewer will render. */
+    val isWordProcessing: Boolean
+        get() = this == DOCX || this == DOCM
+
     val isLegacyOffice: Boolean
         get() = this == LEGACY_DOC || this == LEGACY_XLS ||
             this == LEGACY_PPT || this == LEGACY_OFFICE

@@ -24,7 +24,20 @@ jobs:
         run: ./gradlew :core:test
 
       - name: Build the app
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
         run: ./gradlew :app:assembleDebug
+
+      # Lets a change be installed and tried before it is merged, not only
+      # after. Merges to master publish a GitHub release instead — see
+      # release.yml.
+      - name: Upload the APK for testing
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-pr-${{ github.event.pull_request.number || github.run_number }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
 
       - name: Publish test results
         if: always()

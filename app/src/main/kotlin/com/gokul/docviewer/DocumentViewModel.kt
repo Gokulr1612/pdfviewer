@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.gokul.docviewer.core.ByteSource
 import com.gokul.docviewer.core.Detection
 import com.gokul.docviewer.core.DocumentFormat
 import com.gokul.docviewer.core.FormatDetector
@@ -13,6 +14,11 @@ import com.gokul.docviewer.data.RecentsStore
 import com.gokul.docviewer.data.canStillRead
 import com.gokul.docviewer.data.readMetadata
 import com.gokul.docviewer.data.tryPersistReadGrant
+import com.gokul.docviewer.core.xlsx.Sheet
+import com.gokul.docviewer.core.xlsx.WorkbookIndex
+import com.gokul.docviewer.core.xlsx.XlsxFormatException
+import com.gokul.docviewer.core.xlsx.XlsxReader
+import com.gokul.docviewer.core.xlsx.XmlParserFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +38,18 @@ data class OpenDocument(
     val declaredMimeType: String?,
 )
 
+/** The spreadsheet viewer's own state, nested inside an open document. */
+sealed interface SpreadsheetState {
+    data object Loading : SpreadsheetState
+    data class Failed(val message: String) : SpreadsheetState
+    data class Loaded(
+        val sheetNames: List<String>,
+        val selectedSheet: Int,
+        val sheet: Sheet?,
+        val epoch1904: Boolean,
+    ) : SpreadsheetState
+}
+
 sealed interface ViewerState {
     data object Home : ViewerState
     data object Opening : ViewerState
@@ -50,8 +68,19 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
 
     private val recentsStore = RecentsStore(application)
 
+    // android.util.Xml gives the platform's Expat-backed parser; the core
+    // module stays free of Android types by taking it as a factory.
+    private val xlsxReader = XlsxReader(XmlParserFactory { android.util.Xml.newPullParser() })
+
     private val _state = MutableStateFlow<ViewerState>(ViewerState.Home)
     val state: StateFlow<ViewerState> = _state.asStateFlow()
+
+    private val _spreadsheet = MutableStateFlow<SpreadsheetState>(SpreadsheetState.Loading)
+    val spreadsheet: StateFlow<SpreadsheetState> = _spreadsheet.asStateFlow()
+
+    /** Kept so switching sheets does not re-parse the workbook's shared parts. */
+    private var workbookIndex: WorkbookIndex? = null
+    private var workbookSource: ByteSource? = null
 
     val recents: StateFlow<List<RecentDocument>> = recentsStore.recents
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -104,6 +133,10 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
                 ),
             )
 
+            if (detection.format.isSpreadsheet) {
+                loadWorkbook(ContentUriByteSource(resolver, uri))
+            }
+
             recentsStore.remember(
                 RecentDocument(
                     uri = uri.toString(),
@@ -124,6 +157,67 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
 
     fun closeDocument() {
         _state.value = ViewerState.Home
+        _spreadsheet.value = SpreadsheetState.Loading
+        workbookIndex = null
+        workbookSource = null
+    }
+
+    private suspend fun loadWorkbook(source: ByteSource) {
+        _spreadsheet.value = SpreadsheetState.Loading
+        workbookSource = source
+        workbookIndex = null
+
+        val loaded = withContext(Dispatchers.IO) {
+            try {
+                val index = xlsxReader.readIndex(source)
+                val sheet = if (index.sheets.isEmpty()) {
+                    null
+                } else {
+                    xlsxReader.readSheet(source, index, 0)
+                }
+                Result.success(index to sheet)
+            } catch (e: XlsxFormatException) {
+                Result.failure(e)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+        loaded.fold(
+            onSuccess = { (index, sheet) ->
+                workbookIndex = index
+                _spreadsheet.value = SpreadsheetState.Loaded(
+                    sheetNames = index.sheets.map { it.name },
+                    selectedSheet = 0,
+                    sheet = sheet,
+                    epoch1904 = index.epoch1904,
+                )
+            },
+            onFailure = { error ->
+                _spreadsheet.value = SpreadsheetState.Failed(
+                    error.message ?: "The file could not be read as a spreadsheet.",
+                )
+            },
+        )
+    }
+
+    fun selectSheet(sheetIndex: Int) {
+        val index = workbookIndex ?: return
+        val source = workbookSource ?: return
+        val current = _spreadsheet.value as? SpreadsheetState.Loaded ?: return
+        if (sheetIndex == current.selectedSheet) return
+
+        // Show the tab as selected straight away; the body follows.
+        _spreadsheet.value = current.copy(selectedSheet = sheetIndex, sheet = null)
+        viewModelScope.launch {
+            val sheet = withContext(Dispatchers.IO) {
+                runCatching { xlsxReader.readSheet(source, index, sheetIndex) }.getOrNull()
+            }
+            val latest = _spreadsheet.value as? SpreadsheetState.Loaded ?: return@launch
+            if (latest.selectedSheet == sheetIndex) {
+                _spreadsheet.value = latest.copy(sheet = sheet)
+            }
+        }
     }
 
     /** The Drive URL behind a `.gdoc`/`.gsheet` stub, for handing off to Drive. */

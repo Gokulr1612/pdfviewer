@@ -94,6 +94,7 @@ private fun DocViewerApp(
     val viewModel: DocumentViewModel = viewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val recents by viewModel.recents.collectAsStateWithLifecycle()
+    val spreadsheet by viewModel.spreadsheet.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -137,8 +138,10 @@ private fun DocViewerApp(
 
         is ViewerState.Open -> DocumentScreen(
             document = current.document,
+            spreadsheet = spreadsheet,
             onBack = viewModel::closeDocument,
             onShare = { shareDocument(context, current.document) },
+            onSelectSheet = viewModel::selectSheet,
             onOpenDriveShortcut = {
                 scope.launch {
                     val url = viewModel.driveUrlFor(current.document)
