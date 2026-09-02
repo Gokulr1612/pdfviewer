@@ -28,15 +28,49 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: ./gradlew :app:assembleDebug
 
+      # R8 runs only on the release build, so a debug-only CI leaves the
+      # shrinker completely unexercised until a merge reaches release.yml.
+      # A throwaway key is enough to build one, and catches a stripped
+      # reflective path here instead of on master.
+      - name: Build the release APK to exercise R8
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          password="$(openssl rand -base64 24)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/ci.jks" -alias ci \
+            -keyalg RSA -keysize 2048 -validity 365 \
+            -storepass "$password" -keypass "$password" \
+            -dname "CN=Doc Viewer CI, OU=CI, O=Doc Viewer, C=GB" 2>/dev/null
+          SIGNING_KEYSTORE_PATH="$RUNNER_TEMP/ci.jks" \
+          SIGNING_STORE_PASSWORD="$password" \
+          SIGNING_KEY_ALIAS=ci \
+          SIGNING_KEY_PASSWORD="$password" \
+            ./gradlew :app:assembleRelease
+          {
+            echo "### APK sizes"
+            echo
+            echo "| Build | Size |"
+            echo "| --- | --- |"
+            echo "| debug | $(du -m app/build/outputs/apk/debug/app-debug.apk | cut -f1) MB |"
+            echo "| release (R8) | $(du -m app/build/outputs/apk/release/app-release.apk | cut -f1) MB |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # Lets a change be installed and tried before it is merged, not only
       # after. Merges to master publish a GitHub release instead — see
       # release.yml.
-      - name: Upload the APK for testing
+      - name: Upload the APKs for testing
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: apk-pr-${{ github.event.pull_request.number || github.run_number }}
-          path: app/build/outputs/apk/debug/app-debug.apk
+          # Both, because "compiles under R8" is not "runs under R8" — the
+          # minified one is what is worth installing before trusting it.
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
       - name: Publish test results
