@@ -4,6 +4,11 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Read through the provider API rather than System.getenv so the configuration
+// cache stays valid and simply re-runs when these change.
+val buildNumber = providers.environmentVariable("BUILD_NUMBER").orNull?.toIntOrNull() ?: 1
+val keystorePath = providers.environmentVariable("SIGNING_KEYSTORE_PATH").orNull
+
 android {
     namespace = "com.gokul.docviewer"
 
@@ -21,8 +26,24 @@ android {
         // platform PdfRenderer for a small slice of remaining devices.
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
+
+        // CI passes the run number so each build installs over the previous
+        // one instead of being rejected as a downgrade.
+        versionCode = buildNumber
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        // Only defined when CI has decoded a keystore. Without it, release
+        // builds are unsigned and only the debug APK is publishable.
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("SIGNING_STORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("SIGNING_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("SIGNING_KEY_PASSWORD").orNull
+            }
+        }
     }
 
     buildTypes {
@@ -33,6 +54,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.findByName("release")
+        }
+        debug {
+            // Distinguishes a test build from a release install on the same
+            // device, and keeps both installable side by side.
+            versionNameSuffix = "-debug"
         }
     }
 

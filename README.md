@@ -31,6 +31,46 @@ Keeping `core` free of Android types is deliberate — the parsing work is both
 the hardest part and the part most worth testing, and it should never need an
 emulator to verify.
 
+## Getting the app on a phone
+
+Every merge into `master` publishes a [GitHub Release](../../releases) with an
+APK attached. Download the `.apk` onto an Android phone and open it — Android
+will ask permission to install from that source the first time. Requires
+Android 9 (API 28) or newer.
+
+Changes still on a branch get an APK too: open the pull request's CI run and
+download the `apk-pr-<number>` artifact, so a change can be tried before it is
+merged rather than only after.
+
+This is an Android-only project, so a release contains one APK. There are no
+macOS, Windows or iOS builds to publish — that was the point of choosing a
+native Android app rather than a cross-platform framework.
+
+### Signed builds (optional)
+
+With no configuration, releases contain a **debug** APK. It installs and runs,
+but it is signed with a throwaway key that changes between CI runs, so
+installing a new build over an old one fails with a signature mismatch and the
+previous version has to be uninstalled first.
+
+Adding four repository secrets removes that and publishes a properly signed
+release build alongside the debug one. Create a keystore once:
+
+    keytool -genkeypair -v -keystore release.jks -alias docviewer \
+      -keyalg RSA -keysize 2048 -validity 10000
+
+Then add these under **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+| --- | --- |
+| `SIGNING_KEYSTORE_BASE64` | `base64 -w0 release.jks` |
+| `SIGNING_STORE_PASSWORD` | the keystore password |
+| `SIGNING_KEY_ALIAS` | `docviewer` |
+| `SIGNING_KEY_PASSWORD` | the key password |
+
+Keep `release.jks` somewhere safe and out of the repository. Losing it means
+future builds cannot upgrade an existing install.
+
 ## Building
 
 Requires JDK 17+ and the Android SDK (API 35).
