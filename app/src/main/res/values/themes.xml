@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        androidx.pdf's fragment inflates AppCompat/Material views, so the host
+        activity theme must descend from a Material 3 theme even though the rest
+        of the UI is Compose.
+    -->
+    <style name="Theme.DocViewer" parent="Theme.Material3.DayNight.NoActionBar" />
+</resources>

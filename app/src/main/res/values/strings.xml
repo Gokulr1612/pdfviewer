@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Doc Viewer</string>
+    <string name="open_with_label">Open in Doc Viewer</string>
+    <string name="share_to_label">View in Doc Viewer</string>
+</resources>

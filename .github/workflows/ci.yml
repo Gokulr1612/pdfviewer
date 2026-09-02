@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [master, "claude/**"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The format logic is Android-free by design, so it runs first and fails
+      # fast without needing the SDK.
+      - name: Unit tests (core)
+        run: ./gradlew :core:test
+
+      - name: Build the app
+        run: ./gradlew :app:assembleDebug
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: core/build/reports/tests/test
